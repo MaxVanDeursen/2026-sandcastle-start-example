@@ -27,3 +27,49 @@ describe("pages", () => {
     expect((await app.request("/nope")).status).toBe(404);
   });
 });
+
+describe("Dignitas Hour Server Page", () => {
+  const json = { "content-type": "application/json" };
+  const form = { "content-type": "application/x-www-form-urlencoded" };
+
+  function createRecord(app: ReturnType<typeof createApp>, over: Record<string, unknown> = {}) {
+    return app.request("/fake/dignitas/registrations", {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ date: "2026-10-15", projectCode: "DIG-TRN", hours: 2, remark: "Workshop", ...over }),
+    });
+  }
+
+  it("shows the week's records created through the API, in the server's own fields", async () => {
+    const app = createApp();
+    await createRecord(app, { date: "2026-10-15" }); // W42
+    await createRecord(app, { date: "2026-10-05", projectCode: "DIG-INT", remark: "Other week" }); // W41
+    const html = await (await app.request("/dignitas?week=2026-W42")).text();
+    expect(html).toContain("DIG-TRN");
+    expect(html).toContain("Workshop");
+    expect(html).toContain("2026-10-15");
+    expect(html).not.toContain("Other week");
+  });
+
+  it("offers week navigation", async () => {
+    const app = createApp();
+    const html = await (await app.request("/dignitas?week=2026-W42")).text();
+    expect(html).toContain("/dignitas?week=2026-W41");
+    expect(html).toContain("/dignitas?week=2026-W43");
+  });
+
+  it("toggles Online/Offline from the page, and the page keeps working while Offline", async () => {
+    const app = createApp();
+    expect((await createRecord(app)).status).toBe(201); // Online: API works
+
+    await app.request("/dignitas/toggle", { method: "POST", headers: form, body: "online=false&week=2026-W42" });
+    expect((await createRecord(app)).status).toBe(503); // Offline: API 503s
+
+    const offlineHtml = await (await app.request("/dignitas?week=2026-W42")).text();
+    expect(offlineHtml).toContain("DIG-TRN"); // inspect route keeps the page working
+    expect(offlineHtml).toContain("Offline");
+
+    await app.request("/dignitas/toggle", { method: "POST", headers: form, body: "online=true&week=2026-W42" });
+    expect((await createRecord(app)).status).toBe(201); // back Online
+  });
+});
