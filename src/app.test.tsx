@@ -72,4 +72,23 @@ describe("Dignitas Hour Server Page", () => {
     await app.request("/dignitas/toggle", { method: "POST", headers: form, body: "online=true&week=2026-W42" });
     expect((await createRecord(app)).status).toBe(201); // back Online
   });
+
+  it("compares the server's per-day total against the Timesheet, in hours", async () => {
+    const app = createApp();
+    // Timesheet: 2h on Monday (any Project; Dignitas gets every Time Entry).
+    await app.request("/", {
+      method: "POST",
+      headers: form,
+      body: "date=2026-10-12&projectId=dig-trn&hours=2&description=Workshop",
+    });
+    await createRecord(app, { date: "2026-10-12", hours: 2 }); // Monday: server 2 == Timesheet 2
+    await createRecord(app, { date: "2026-10-13", hours: 3 }); // Tuesday: server 3, Timesheet 0
+
+    const html = await (await app.request("/dignitas?week=2026-W42")).text();
+    expect(html).toContain("Server (h)");
+    expect(html).toContain("Timesheet (h)");
+    // Matching Monday is not highlighted; differing Tuesday is.
+    expect(html).toMatch(/<tr><td>\s*Monday 2026-10-12\s*<\/td>/);
+    expect(html).toMatch(/<tr class="diff"><td>\s*Tuesday 2026-10-13\s*<\/td>/);
+  });
 });

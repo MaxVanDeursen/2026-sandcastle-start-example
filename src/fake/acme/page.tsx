@@ -2,10 +2,16 @@
 // week navigation and an Online/Offline toggle. Reads the store via inspect.
 import { Layout } from "../../pages/layout";
 import { shiftWeek, weekDays } from "../../week/week";
+import { DayComparison, type ComparisonRow } from "../../comparison/comparison";
 import type { AcmeRecord } from "./store";
 
-export function AcmeHourServerPage(props: { week: string; online: boolean; records: AcmeRecord[] }) {
-  const { week, online, records } = props;
+export function AcmeHourServerPage(props: {
+  week: string;
+  online: boolean;
+  records: AcmeRecord[];
+  comparison: ComparisonRow[];
+}) {
+  const { week, online, records, comparison } = props;
   const days = weekDays(week);
   const range = `${days[0]} – ${days[6]}`;
   const prev = shiftWeek(week, -1);
@@ -29,6 +35,9 @@ export function AcmeHourServerPage(props: { week: string; online: boolean; recor
         </strong>{" "}
         <a href={`/acme?week=${next}`}>Next →</a>
       </p>
+
+      <h2>Per-day comparison</h2>
+      <DayComparison rows={comparison} unit="min" />
 
       {records.length === 0 ? (
         <p>No records this week.</p>

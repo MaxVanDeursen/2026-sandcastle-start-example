@@ -28,6 +28,9 @@ const css = `
   .rowactions { display: flex; gap: .6rem; align-items: center; }
   .rowactions form { display: inline; margin: 0; }
   .rowactions button { background: none; border: none; color: #a00; cursor: pointer; padding: 0; font: inherit; }
+  table.comparison { margin-bottom: 1.5rem; }
+  table.comparison tr.diff { background: #fff3cd; }
+  table.comparison tr.diff td { font-weight: bold; }
 `;
 
 /** Page shell shared by every page: title, stylesheet and the top nav. */

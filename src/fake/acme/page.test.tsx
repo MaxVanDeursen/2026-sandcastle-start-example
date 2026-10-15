@@ -60,4 +60,23 @@ describe("Acme Hour Server Page", () => {
     const app = createApp();
     expect((await app.request("/acme?week=nonsense")).status).toBe(200);
   });
+
+  it("compares per day in minutes, counting only Acme Time Entries", async () => {
+    const app = createApp();
+    const form = { "content-type": "application/x-www-form-urlencoded" };
+    // Monday: 1.5h on an Acme Project = 90 min on the Timesheet; Acme has 90 min → match.
+    await app.request("/", { method: "POST", headers: form, body: "date=2026-10-12&projectId=acme-wp&hours=1.5&description=Portal" });
+    await create(app, { ...valid, workDate: "2026-10-12", minutes: 90 });
+    // Tuesday: a Dignitas Time Entry must be ignored, so both totals are 0 → match.
+    await app.request("/", { method: "POST", headers: form, body: "date=2026-10-13&projectId=dig-trn&hours=2&description=Internal" });
+    // Wednesday: Acme has 60 min with no matching Time Entry → differs.
+    await create(app, { ...valid, workDate: "2026-10-14", minutes: 60 });
+
+    const html = await (await app.request("/acme?week=2026-W42")).text();
+    expect(html).toContain("Server (min)");
+    expect(html).toContain("Timesheet (min)");
+    expect(html).toMatch(/<tr><td>\s*Monday 2026-10-12\s*<\/td>/);
+    expect(html).toMatch(/<tr><td>\s*Tuesday 2026-10-13\s*<\/td>/); // non-Acme entry ignored
+    expect(html).toMatch(/<tr class="diff"><td>\s*Wednesday 2026-10-14\s*<\/td>/);
+  });
 });
