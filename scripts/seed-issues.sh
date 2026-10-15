@@ -25,7 +25,17 @@ fi
 repo=${1:-$(git remote get-url origin | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')}
 echo "Seeding issues in $repo"
 
-if [ "$(gh api "repos/$repo" --jq .has_issues)" != "true" ]; then
+if [ -n "${GH_TOKEN:-}" ] && [ "${GH_TOKEN#github_pat_}" = "$GH_TOKEN" ] && [ "${GH_TOKEN#ghp_}" = "$GH_TOKEN" ]; then
+  echo "Warning: GH_TOKEN doesn't look like a GitHub token (github_pat_… or ghp_…)." >&2
+  echo "  In .sandcastle/.env, check GH_TOKEN and CLAUDE_CODE_OAUTH_TOKEN aren't swapped." >&2
+fi
+
+if ! has_issues=$(gh api "repos/$repo" --jq .has_issues 2>&1); then
+  echo "Could not read $repo: $has_issues" >&2
+  echo "Check GH_TOKEN: a valid GitHub token with access to $repo." >&2
+  exit 1
+fi
+if [ "$has_issues" != "true" ]; then
   echo "Issues are disabled on $repo (the default for forks)." >&2
   echo "Enable them: Settings → General → Features → Issues, or: gh repo edit $repo --enable-issues" >&2
   exit 1
