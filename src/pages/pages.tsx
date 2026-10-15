@@ -57,6 +57,4 @@ export function DignitasHourServerPage(props: { week: string; online: boolean; r
   );
 }
 
-export function ClientHourServerPage() {
-  return <Layout title="Client Hour Server (Acme Logistics)" active="acme" />;
-}
+// The Client Hour Server Page lives in src/fake/acme/page.tsx (ticket 03).
