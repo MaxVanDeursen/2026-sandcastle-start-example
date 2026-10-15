@@ -7,6 +7,7 @@ import { AcmeStore } from "./fake/acme/store";
 import { createAcmeServer } from "./fake/acme/server";
 import { AcmeHourServerPage } from "./fake/acme/page";
 import { Timesheet, type EntryInput } from "./timesheet/timesheet";
+import { reconcileDignitas, toDignitasPayload, type Fetcher } from "./sync/dignitas";
 import { ACME_CLIENT_ID, findProject } from "./catalog/catalog";
 import { perDayComparison } from "./comparison/comparison";
 import { currentWeek, isIsoWeek, isoWeek, weekDays } from "./week/week";
@@ -15,6 +16,9 @@ import { currentWeek, isIsoWeek, isoWeek, weekDays } from "./week/week";
 export function createApp() {
   const app = new Hono();
   const timesheet = new Timesheet();
+
+  // Sync reaches the in-process Dignitas Hour Server through the app itself.
+  const fetcher: Fetcher = async (input, init) => app.request(input, init);
 
   /** The week to show: a valid `?week=` query, else the current week. */
   const weekParam = (raw: string | undefined): string =>
@@ -40,6 +44,9 @@ export function createApp() {
     const input = await readEntryInput(c);
     const result = timesheet.add(input);
     if (result.ok) {
+      // Sync the new Time Entry to the Dignitas Hour Server in this request.
+      const status = await reconcileDignitas(fetcher, { wanted: true, payload: toDignitasPayload(result.entry) });
+      timesheet.setDignitasSync(result.entry.id, status);
       // Land on the week of the entered date so the new Time Entry is visible.
       return c.redirect(`/?week=${isoWeek(result.entry.date)}`, 303);
     }
@@ -64,6 +71,13 @@ export function createApp() {
     const input = await readEntryInput(c);
     const result = timesheet.update(id, input);
     if (result.ok) {
+      // Replace the entry on the Dignitas Hour Server with its full current state.
+      const status = await reconcileDignitas(fetcher, {
+        wanted: true,
+        registrationId: result.entry.dignitas?.registrationId,
+        payload: toDignitasPayload(result.entry),
+      });
+      timesheet.setDignitasSync(result.entry.id, status);
       // Return to the Timesheet week of the (possibly changed) date.
       return c.redirect(`/?week=${isoWeek(result.entry.date)}`, 303);
     }
@@ -73,8 +87,12 @@ export function createApp() {
   });
 
   app.post("/entries/:id/delete", async (c) => {
-    const removed = timesheet.remove(c.req.param("id"));
-    if (!removed) return c.notFound();
+    const id = c.req.param("id");
+    const entry = timesheet.find(id);
+    if (!entry) return c.notFound();
+    // Delete the entry from the Dignitas Hour Server before dropping it locally.
+    await reconcileDignitas(fetcher, { wanted: false, registrationId: entry.dignitas?.registrationId });
+    timesheet.remove(id);
     const week = weekParam(c.req.query("week"));
     return c.redirect(`/?week=${week}`, 303);
   });

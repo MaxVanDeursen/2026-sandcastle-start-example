@@ -28,6 +28,10 @@ const css = `
   .rowactions { display: flex; gap: .6rem; align-items: center; }
   .rowactions form { display: inline; margin: 0; }
   .rowactions button { background: none; border: none; color: #a00; cursor: pointer; padding: 0; font: inherit; }
+  .badge { display: inline-block; min-width: 1.1rem; text-align: center; border-radius: 3px;
+    padding: .05rem .2rem; font-size: .75rem; font-weight: bold; color: #fff; background: #999; }
+  .badge-synced { background: #2e7d32; }
+  .badge-failed { background: #a00; }
   table.comparison { margin-bottom: 1.5rem; }
   table.comparison tr.diff { background: #fff3cd; }
   table.comparison tr.diff td { font-weight: bold; }

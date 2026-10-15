@@ -17,6 +17,16 @@ function projectName(projectId: string): string {
   return project ? projectLabel(project) : projectId;
 }
 
+/** The Dignitas Sync Status badge (`D`): green while `synced` (CONTEXT.md). */
+function SyncBadges(props: { entry: TimeEntry }) {
+  const state = props.entry.dignitas?.state ?? "pending";
+  return (
+    <span class={`badge badge-${state}`} title={`Dignitas: ${state}`}>
+      D
+    </span>
+  );
+}
+
 /** The add/edit form. Same fields and validation either way; only the action differs. */
 function EntryForm(props: { action: string; submitLabel: string; values?: EntryInput; message?: string }) {
   const { action, submitLabel, values, message } = props;
@@ -95,6 +105,9 @@ export function TimesheetPage(props: {
                         <td>{projectName(e.projectId)}</td>
                         <td>{formatHours(e.hours)}h</td>
                         <td>{e.description}</td>
+                        <td class="sync">
+                          <SyncBadges entry={e} />
+                        </td>
                         <td class="rowactions">
                           <a href={`/entries/${e.id}/edit?week=${week}`}>Edit</a>
                           <form method="post" action={`/entries/${e.id}/delete?week=${week}`}>

@@ -76,12 +76,12 @@ describe("Dignitas Hour Server Page", () => {
   it("compares the server's per-day total against the Timesheet, in hours", async () => {
     const app = createApp();
     // Timesheet: 2h on Monday (any Project; Dignitas gets every Time Entry).
+    // Logging it Syncs it to the server, so Monday: server 2 == Timesheet 2.
     await app.request("/", {
       method: "POST",
       headers: form,
       body: "date=2026-10-12&projectId=dig-trn&hours=2&description=Workshop",
     });
-    await createRecord(app, { date: "2026-10-12", hours: 2 }); // Monday: server 2 == Timesheet 2
     await createRecord(app, { date: "2026-10-13", hours: 3 }); // Tuesday: server 3, Timesheet 0
 
     const html = await (await app.request("/dignitas?week=2026-W42")).text();

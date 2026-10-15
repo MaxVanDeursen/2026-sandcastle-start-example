@@ -4,6 +4,7 @@
 
 import { randomUUID } from "node:crypto";
 import { findProject } from "../catalog/catalog";
+import type { SyncStatus } from "../sync/dignitas";
 import { isDay, isoWeek } from "../week/week";
 
 export type TimeEntry = {
@@ -12,6 +13,8 @@ export type TimeEntry = {
   projectId: string;
   hours: number;
   description: string;
+  /** Sync Status for the Dignitas Hour Server (CONTEXT.md), set after each Sync. */
+  dignitas?: SyncStatus;
 };
 
 /** Raw form values, before validation. */
@@ -69,9 +72,16 @@ export class Timesheet {
     if (index === -1) return { ok: false, notFound: true };
     const result = this.validate(input, id);
     if (!result.ok) return result;
-    const entry = { ...result.entry, id };
+    // Keep the entry's id and its Sync Status (its remote ids) across the edit.
+    const entry = { ...result.entry, id, dignitas: this.entries[index]!.dignitas };
     this.entries[index] = entry;
     return { ok: true, entry };
+  }
+
+  /** Record a Time Entry's Dignitas Sync Status after a Sync. */
+  setDignitasSync(id: string, status: SyncStatus): void {
+    const entry = this.entries.find((e) => e.id === id);
+    if (entry) entry.dignitas = status;
   }
 
   /** Remove the Time Entry with the given id; true if one was removed. */

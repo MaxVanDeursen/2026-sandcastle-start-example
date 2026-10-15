@@ -179,3 +179,49 @@ describe("Timesheet edit and delete", () => {
     expect((await post(app, `/entries/${unknown}/delete`, {})).status).toBe(404);
   });
 });
+
+/** The Dignitas Hour Server's records for a week, via its inspect route. */
+async function dignitasRecords(app: ReturnType<typeof createApp>, week = "2026-W42") {
+  const res = await app.request(`/fake/dignitas/_inspect?week=${week}`);
+  return (await res.json()).records as Array<{ projectCode: string; hours: number; remark: string }>;
+}
+
+describe("Sync to the Dignitas Hour Server", () => {
+  it("shows a green D badge on every Time Entry after it Syncs", async () => {
+    const app = createApp();
+    await post(app, "/?week=2026-W42", validEntry);
+    const html = await (await app.request("/?week=2026-W42")).text();
+    expect(html).toMatch(/<span class="badge badge-synced"[^>]*>\s*D\s*<\/span>/);
+  });
+
+  it("reflects an added Time Entry on the Dignitas Hour Server", async () => {
+    const app = createApp();
+    await post(app, "/?week=2026-W42", validEntry);
+    const records = await dignitasRecords(app);
+    expect(records).toHaveLength(1);
+    // Project → projectCode, description → remark.
+    expect(records[0]).toMatchObject({ projectCode: "ACME-WP", hours: 1.5, remark: "Portal work" });
+  });
+
+  it("replaces the same record when a Time Entry is edited (no duplicate)", async () => {
+    const app = createApp();
+    const id = await addAndGetId(app);
+    await post(app, `/entries/${id}?week=2026-W42`, {
+      date: "2026-10-15",
+      projectId: "dig-trn",
+      hours: "3",
+      description: "Edited work",
+    });
+    const records = await dignitasRecords(app);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ projectCode: "DIG-TRN", hours: 3, remark: "Edited work" });
+  });
+
+  it("deletes the record when a Time Entry is deleted", async () => {
+    const app = createApp();
+    const id = await addAndGetId(app);
+    expect(await dignitasRecords(app)).toHaveLength(1);
+    await post(app, `/entries/${id}/delete?week=2026-W42`, {});
+    expect(await dignitasRecords(app)).toHaveLength(0);
+  });
+});
