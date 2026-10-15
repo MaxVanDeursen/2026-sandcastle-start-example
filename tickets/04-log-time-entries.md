@@ -16,4 +16,4 @@ The Consultant logs Time Entries on the Timesheet (`/?week=…`): an add form (d
 
 ## Blocked by
 
-- #{{01}}
+None (can start immediately)

@@ -1,5 +1,13 @@
 # CLAUDE.md
 
+## Commands
+
+- `npm run dev`: app on http://localhost:3000
+- `npm run test`: Vitest
+- `npm run typecheck`: `tsc --noEmit`
+
+Stack and layout: `docs/adr/0001-hono-ssr-with-in-process-fake-hour-servers.md`.
+
 ## Agent skills
 
 ### Issue tracker

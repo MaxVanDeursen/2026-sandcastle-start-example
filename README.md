@@ -6,7 +6,8 @@ A ready-made result of the *Idea → Spec* exercise, to run the *Sandcastle* exe
 
 - How it was planned: the [wayfinder map](https://github.com/RRMoelker/2026-sandcastle-start-example/issues/1) and its closed decision tickets.
 - Glossary: `CONTEXT.md`. Stack decision: `docs/adr/`.
-- Implementation tickets: `tickets/`. No code yet; that is Sandcastle's job.
+- Code: only the app skeleton (Hono, server-rendered pages, nav, Project catalog, ISO-week helpers). The rest is Sandcastle's job.
+- Implementation tickets: `tickets/`. Three can start right away, in parallel.
 
 ## Start
 
