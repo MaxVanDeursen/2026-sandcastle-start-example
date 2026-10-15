@@ -10,6 +10,4 @@ export function DignitasHourServerPage() {
   return <Layout title="Dignitas Hour Server" active="dignitas" />;
 }
 
-export function ClientHourServerPage() {
-  return <Layout title="Client Hour Server (Acme Logistics)" active="acme" />;
-}
+// The Client Hour Server Page lives in src/fake/acme/page.tsx (ticket 03).
