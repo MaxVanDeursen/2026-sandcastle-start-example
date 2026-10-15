@@ -12,5 +12,5 @@ A ready-made result of the *Idea → Spec* exercise, to run the *Sandcastle* exe
 
 1. Fork this repo and clone it. Uncheck **Copy the `main` branch only**: the `research/…` and `prototype/…` branches hold the assets the decision tickets link to. (Or *Use this template* → **Include all branches** for a private copy.)
 2. Forks have Issues switched off: Settings → General → Features → Issues.
-3. Create the tickets as issues in **your** repo: `scripts/seed-issues.sh` (needs `gh`, logged in or `GH_TOKEN` set).
+3. Create the tickets as issues in **your** repo: `npm run tickets`. Needs `gh`; uses `GH_TOKEN` from the environment, else from `.sandcastle/.env`, else your `gh` login.
 4. Continue with the Sandcastle exercise setup.

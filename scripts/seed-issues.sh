@@ -3,9 +3,23 @@
 # with native "blocked by" links. Forks don't copy issues, so run this once
 # in your own fork or copy.
 #
-# Usage: scripts/seed-issues.sh [owner/repo]   (default: the origin remote)
+# Usage: npm run tickets [-- owner/repo]   (default: the origin remote)
+#    or: scripts/seed-issues.sh [owner/repo]
+#
+# Auth: GH_TOKEN from the environment, else GH_TOKEN from .sandcastle/.env,
+# else gh's own login.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+if [ -z "${GH_TOKEN:-}" ] && [ -f .sandcastle/.env ]; then
+  GH_TOKEN=$(sed -n 's/^[[:space:]]*\(export[[:space:]]\{1,\}\)\{0,1\}GH_TOKEN=//p' .sandcastle/.env | tail -n1 | tr -d "\"'[:space:]")
+  if [ -n "$GH_TOKEN" ]; then
+    export GH_TOKEN
+    echo "Using GH_TOKEN from .sandcastle/.env"
+  else
+    unset GH_TOKEN
+  fi
+fi
 
 # Target origin explicitly: in a fork, gh would otherwise default to the upstream repo.
 repo=${1:-$(git remote get-url origin | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')}
