@@ -36,7 +36,16 @@ if [ -n "$(gh issue list -R "$repo" --label Sandcastle --state all --limit 1 --j
   exit 1
 fi
 
-gh label create Sandcastle -R "$repo" --color f9d0c4 --description "Picked up by Sandcastle" 2>/dev/null || true
+if ! gh label list -R "$repo" --search Sandcastle --json name --jq '.[].name' | grep -qx Sandcastle; then
+  if ! err=$(gh label create Sandcastle -R "$repo" --color f9d0c4 --description "Picked up by Sandcastle" 2>&1); then
+    echo "Could not create the Sandcastle label on $repo:" >&2
+    echo "  $err" >&2
+    echo "The token needs Issues: read and write on $repo. For a fine-grained PAT:" >&2
+    echo "  resource owner ${repo%%/*}, and $repo under the selected repositories." >&2
+    exit 1
+  fi
+  echo "Created label Sandcastle"
+fi
 
 nums=() # ticket number (01, 02, ...) -> created issue number
 for file in tickets/[0-9][0-9]-*.md; do
