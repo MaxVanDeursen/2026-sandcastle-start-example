@@ -25,6 +25,9 @@ const css = `
   .day h2 { font-size: 1rem; margin: 1rem 0 .3rem; }
   .empty { color: #888; margin: .2rem 0; }
   .weektotal { margin-top: 1.5rem; }
+  .rowactions { display: flex; gap: .6rem; align-items: center; }
+  .rowactions form { display: inline; margin: 0; }
+  .rowactions button { background: none; border: none; color: #a00; cursor: pointer; padding: 0; font: inherit; }
 `;
 
 /** Page shell shared by every page: title, stylesheet and the top nav. */

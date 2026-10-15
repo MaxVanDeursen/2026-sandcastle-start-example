@@ -16,6 +16,46 @@ function projectName(projectId: string): string {
   return project ? projectLabel(project) : projectId;
 }
 
+/** The add/edit form. Same fields and validation either way; only the action differs. */
+function EntryForm(props: { action: string; submitLabel: string; values?: EntryInput; message?: string }) {
+  const { action, submitLabel, values, message } = props;
+  return (
+    <form method="post" action={action}>
+      {message ? <p class="error">{message}</p> : null}
+      <label>
+        Date <input type="date" name="date" value={values?.date ?? ""} required />
+      </label>
+      <label>
+        Project{" "}
+        <select name="projectId" required>
+          <option value="" disabled selected={!values?.projectId}>
+            Client · Project
+          </option>
+          {projects.map((p) => (
+            <option value={p.id} selected={values?.projectId === p.id}>
+              {projectLabel(p)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Hours{" "}
+        <input type="number" name="hours" step="0.25" min="0.25" max="24" value={values?.hours ?? ""} required />
+      </label>
+      <label>
+        Description{" "}
+        <input type="text" name="description" maxlength={200} value={values?.description ?? ""} required />
+      </label>
+      <button type="submit">{submitLabel}</button>
+    </form>
+  );
+}
+
+/** The add/edit form's raw values for a stored Time Entry. */
+function entryValues(entry: TimeEntry): EntryInput {
+  return { date: entry.date, projectId: entry.projectId, hours: formatHours(entry.hours), description: entry.description };
+}
+
 /** The Timesheet: an add form above the week's Time Entries, listed per day. */
 export function TimesheetPage(props: {
   week: string;
@@ -23,7 +63,6 @@ export function TimesheetPage(props: {
   form?: { values: EntryInput; message: string };
 }) {
   const { week, entries, form } = props;
-  const values = form?.values;
   const weekTotal = entries.reduce((sum, e) => sum + e.hours, 0);
 
   return (
@@ -34,34 +73,7 @@ export function TimesheetPage(props: {
         <a href={`/?week=${shiftWeek(week, 1)}`}>Next week →</a>
       </nav>
 
-      <form method="post" action={`/?week=${week}`}>
-        {form ? <p class="error">{form.message}</p> : null}
-        <label>
-          Date <input type="date" name="date" value={values?.date ?? ""} required />
-        </label>
-        <label>
-          Project{" "}
-          <select name="projectId" required>
-            <option value="" disabled selected={!values?.projectId}>
-              Client · Project
-            </option>
-            {projects.map((p) => (
-              <option value={p.id} selected={values?.projectId === p.id}>
-                {projectLabel(p)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Hours{" "}
-          <input type="number" name="hours" step="0.25" min="0.25" max="24" value={values?.hours ?? ""} required />
-        </label>
-        <label>
-          Description{" "}
-          <input type="text" name="description" maxlength={200} value={values?.description ?? ""} required />
-        </label>
-        <button type="submit">Add Time Entry</button>
-      </form>
+      <EntryForm action={`/?week=${week}`} submitLabel="Add Time Entry" values={form?.values} message={form?.message} />
 
       <section class="entries">
         {weekDays(week).map((day, i) => {
@@ -82,6 +94,12 @@ export function TimesheetPage(props: {
                         <td>{projectName(e.projectId)}</td>
                         <td>{formatHours(e.hours)}h</td>
                         <td>{e.description}</td>
+                        <td class="rowactions">
+                          <a href={`/entries/${e.id}/edit?week=${week}`}>Edit</a>
+                          <form method="post" action={`/entries/${e.id}/delete?week=${week}`}>
+                            <button type="submit">Delete</button>
+                          </form>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -95,6 +113,25 @@ export function TimesheetPage(props: {
       <p class="weektotal">
         <strong>Week total: {formatHours(weekTotal)}h</strong>
       </p>
+    </Layout>
+  );
+}
+
+/** Edit an existing Time Entry: the same form as adding, pre-filled, saving to the entry. */
+export function EditEntryPage(props: {
+  id: string;
+  week: string;
+  entry: TimeEntry;
+  form?: { values: EntryInput; message: string };
+}) {
+  const { id, week, entry, form } = props;
+  const values = form?.values ?? entryValues(entry);
+  return (
+    <Layout title="Edit Time Entry" active="timesheet">
+      <p>
+        <a href={`/?week=${week}`}>← Back to Timesheet</a>
+      </p>
+      <EntryForm action={`/entries/${id}?week=${week}`} submitLabel="Save Time Entry" values={values} message={form?.message} />
     </Layout>
   );
 }

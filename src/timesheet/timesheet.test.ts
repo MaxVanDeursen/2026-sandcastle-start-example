@@ -49,6 +49,72 @@ describe("Timesheet.add", () => {
   });
 });
 
+describe("Timesheet.find", () => {
+  it("returns the Time Entry with the given id, or undefined", () => {
+    const sheet = new Timesheet();
+    const added = sheet.add(valid());
+    if (!added.ok) throw new Error("expected add to succeed");
+    expect(sheet.find(added.entry.id)).toBe(added.entry);
+    expect(sheet.find("nope")).toBeUndefined();
+  });
+});
+
+describe("Timesheet.update", () => {
+  it("changes date, Project, hours and description, keeping the id", () => {
+    const sheet = new Timesheet();
+    const added = sheet.add(valid());
+    if (!added.ok) throw new Error("expected add to succeed");
+    const result = sheet.update(added.entry.id, valid({ date: "2026-10-16", projectId: "dig-trn", hours: "3", description: "Changed" }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.entry).toMatchObject({ id: added.entry.id, date: "2026-10-16", projectId: "dig-trn", hours: 3, description: "Changed" });
+    expect(sheet.all()).toHaveLength(1);
+    expect(sheet.find(added.entry.id)).toMatchObject({ description: "Changed" });
+  });
+
+  it("validates with the same gate as adding", () => {
+    const sheet = new Timesheet();
+    const added = sheet.add(valid());
+    if (!added.ok) throw new Error("expected add to succeed");
+    const result = sheet.update(added.entry.id, valid({ hours: "1.1" }));
+    expect(result).toEqual({ ok: false, message: "Hours must be in steps of 0.25" });
+    // The original value is untouched.
+    expect(sheet.find(added.entry.id)).toMatchObject({ hours: 1.5 });
+  });
+
+  it("excludes the edited entry from its date's 24-hour cap", () => {
+    const sheet = new Timesheet();
+    const added = sheet.add(valid({ hours: "20" }));
+    if (!added.ok) throw new Error("expected add to succeed");
+    // Growing the same entry to 24 is fine even though 20 already exist.
+    const result = sheet.update(added.entry.id, valid({ hours: "24" }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.entry.hours).toBe(24);
+  });
+
+  it("returns not-found for an unknown id", () => {
+    const sheet = new Timesheet();
+    expect(sheet.update("nope", valid())).toEqual({ ok: false, notFound: true });
+  });
+});
+
+describe("Timesheet.remove", () => {
+  it("removes the Time Entry and reports success", () => {
+    const sheet = new Timesheet();
+    const added = sheet.add(valid());
+    if (!added.ok) throw new Error("expected add to succeed");
+    expect(sheet.remove(added.entry.id)).toBe(true);
+    expect(sheet.all()).toHaveLength(0);
+    expect(sheet.find(added.entry.id)).toBeUndefined();
+  });
+
+  it("reports failure for an unknown id", () => {
+    const sheet = new Timesheet();
+    expect(sheet.remove("nope")).toBe(false);
+  });
+});
+
 describe("Timesheet.forWeek", () => {
   it("keeps only the Time Entries whose date falls in the week", () => {
     const sheet = new Timesheet();

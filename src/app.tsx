@@ -1,7 +1,8 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import type { DignitasRecord } from "./fake/dignitas";
 import { createDignitasServer } from "./fake/dignitas";
-import { DignitasHourServerPage, TimesheetPage } from "./pages/pages";
+import { DignitasHourServerPage, EditEntryPage, TimesheetPage } from "./pages/pages";
 import { AcmeStore } from "./fake/acme/store";
 import { createAcmeServer } from "./fake/acme/server";
 import { AcmeHourServerPage } from "./fake/acme/page";
@@ -17,19 +18,24 @@ export function createApp() {
   const weekParam = (raw: string | undefined): string =>
     raw && isIsoWeek(raw) ? raw : currentWeek();
 
+  /** Read the add/edit form body into an EntryInput. */
+  const readEntryInput = async (c: Context): Promise<EntryInput> => {
+    const body = await c.req.parseBody();
+    return {
+      date: String(body.date ?? ""),
+      projectId: String(body.projectId ?? ""),
+      hours: String(body.hours ?? ""),
+      description: String(body.description ?? ""),
+    };
+  };
+
   app.get("/", (c) => {
     const week = weekParam(c.req.query("week"));
     return c.html(<TimesheetPage week={week} entries={timesheet.forWeek(week)} />);
   });
 
   app.post("/", async (c) => {
-    const body = await c.req.parseBody();
-    const input: EntryInput = {
-      date: String(body.date ?? ""),
-      projectId: String(body.projectId ?? ""),
-      hours: String(body.hours ?? ""),
-      description: String(body.description ?? ""),
-    };
+    const input = await readEntryInput(c);
     const result = timesheet.add(input);
     if (result.ok) {
       // Land on the week of the entered date so the new Time Entry is visible.
@@ -40,6 +46,35 @@ export function createApp() {
       <TimesheetPage week={week} entries={timesheet.forWeek(week)} form={{ values: input, message: result.message }} />,
       422,
     );
+  });
+
+  app.get("/entries/:id/edit", (c) => {
+    const entry = timesheet.find(c.req.param("id"));
+    if (!entry) return c.notFound();
+    const week = weekParam(c.req.query("week"));
+    return c.html(<EditEntryPage id={entry.id} week={week} entry={entry} />);
+  });
+
+  app.post("/entries/:id", async (c) => {
+    const id = c.req.param("id");
+    const entry = timesheet.find(id);
+    if (!entry) return c.notFound();
+    const input = await readEntryInput(c);
+    const result = timesheet.update(id, input);
+    if (result.ok) {
+      // Return to the Timesheet week of the (possibly changed) date.
+      return c.redirect(`/?week=${isoWeek(result.entry.date)}`, 303);
+    }
+    if ("notFound" in result) return c.notFound();
+    const week = weekParam(c.req.query("week"));
+    return c.html(<EditEntryPage id={id} week={week} entry={entry} form={{ values: input, message: result.message }} />, 422);
+  });
+
+  app.post("/entries/:id/delete", async (c) => {
+    const removed = timesheet.remove(c.req.param("id"));
+    if (!removed) return c.notFound();
+    const week = weekParam(c.req.query("week"));
+    return c.redirect(`/?week=${week}`, 303);
   });
 
   app.route("/fake/dignitas", createDignitasServer());

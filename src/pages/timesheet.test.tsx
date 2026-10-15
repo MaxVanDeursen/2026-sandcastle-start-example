@@ -93,3 +93,89 @@ describe("Timesheet add form", () => {
     expect(html).toContain('value="Overflow"');
   });
 });
+
+/** Add one Time Entry and return its id, read from its Edit link. */
+async function addAndGetId(app: ReturnType<typeof createApp>, fields = validEntry): Promise<string> {
+  await post(app, "/?week=2026-W42", fields);
+  const html = await (await app.request("/?week=2026-W42")).text();
+  const id = html.match(/\/entries\/([0-9a-f-]{36})\/edit/)?.[1];
+  if (!id) throw new Error("no entry id found on the Timesheet");
+  return id;
+}
+
+describe("Timesheet edit and delete", () => {
+  it("shows Edit and Delete controls on each Time Entry row", async () => {
+    const app = createApp();
+    const id = await addAndGetId(app);
+    const html = await (await app.request("/?week=2026-W42")).text();
+    expect(html).toContain(`/entries/${id}/edit?week=2026-W42`);
+    expect(html).toContain(`action="/entries/${id}/delete?week=2026-W42"`);
+  });
+
+  it("opens the edit form pre-filled with the entry's values", async () => {
+    const app = createApp();
+    const id = await addAndGetId(app);
+    const html = await (await app.request(`/entries/${id}/edit?week=2026-W42`)).text();
+    expect(html).toContain(`action="/entries/${id}?week=2026-W42"`);
+    expect(html).toContain('value="2026-10-15"');
+    expect(html).toContain('value="1.5"');
+    expect(html).toContain('value="Portal work"');
+    expect(html).toContain("Save Time Entry");
+  });
+
+  it("saves edited date, Project, hours and description and returns to the entry's week", async () => {
+    const app = createApp();
+    const id = await addAndGetId(app);
+    const res = await post(app, `/entries/${id}?week=2026-W42`, {
+      date: "2026-10-19",
+      projectId: "dig-trn",
+      hours: "3",
+      description: "Edited work",
+    });
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/?week=2026-W43");
+
+    const w43 = await (await app.request("/?week=2026-W43")).text();
+    expect(w43).toContain("Edited work");
+    expect(w43).toContain("Dignitas · Training");
+    expect(w43).toContain("Week total: 3h");
+
+    // The old week no longer shows the entry.
+    const w42 = await (await app.request("/?week=2026-W42")).text();
+    expect(w42).not.toContain("Edited work");
+    expect(w42).toContain("Week total: 0h");
+  });
+
+  it("re-renders the edit form with the message on invalid input", async () => {
+    const app = createApp();
+    const id = await addAndGetId(app);
+    const res = await post(app, `/entries/${id}?week=2026-W42`, { ...validEntry, hours: "1.1" });
+    expect(res.status).toBe(422);
+    const html = await res.text();
+    expect(html).toContain("Hours must be in steps of 0.25");
+    expect(html).toContain('value="1.1"');
+    // Nothing changed: the original is still logged.
+    const w42 = await (await app.request("/?week=2026-W42")).text();
+    expect(w42).toContain("Week total: 1.5h");
+  });
+
+  it("deletes a Time Entry and updates the week total", async () => {
+    const app = createApp();
+    const id = await addAndGetId(app);
+    const res = await post(app, `/entries/${id}/delete?week=2026-W42`, {});
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/?week=2026-W42");
+
+    const w42 = await (await app.request("/?week=2026-W42")).text();
+    expect(w42).not.toContain("Portal work");
+    expect(w42).toContain("Week total: 0h");
+  });
+
+  it("404s for an unknown id on edit, save and delete", async () => {
+    const app = createApp();
+    const unknown = "00000000-0000-0000-0000-000000000000";
+    expect((await app.request(`/entries/${unknown}/edit`)).status).toBe(404);
+    expect((await post(app, `/entries/${unknown}`, validEntry)).status).toBe(404);
+    expect((await post(app, `/entries/${unknown}/delete`, {})).status).toBe(404);
+  });
+});

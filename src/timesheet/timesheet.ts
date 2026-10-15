@@ -26,6 +26,8 @@ export type AddResult =
   | { ok: true; entry: TimeEntry }
   | { ok: false; message: string };
 
+export type UpdateResult = AddResult | { ok: false; notFound: true };
+
 export const HOURS_STEP = 0.25;
 export const MAX_HOURS_PER_DATE = 24;
 export const MAX_DESCRIPTION = 200;
@@ -49,6 +51,11 @@ export class Timesheet {
     return this.entries.filter((e) => isoWeek(e.date) === week);
   }
 
+  /** The Time Entry with the given id, or undefined. */
+  find(id: string): TimeEntry | undefined {
+    return this.entries.find((e) => e.id === id);
+  }
+
   /** Validate and, if valid, log a Time Entry. */
   add(input: EntryInput): AddResult {
     const result = this.validate(input);
@@ -56,7 +63,28 @@ export class Timesheet {
     return result;
   }
 
-  private validate(input: EntryInput): AddResult {
+  /** Validate and, if valid, replace an existing Time Entry's fields (its id stays). */
+  update(id: string, input: EntryInput): UpdateResult {
+    const index = this.entries.findIndex((e) => e.id === id);
+    if (index === -1) return { ok: false, notFound: true };
+    const result = this.validate(input, id);
+    if (!result.ok) return result;
+    const entry = { ...result.entry, id };
+    this.entries[index] = entry;
+    return { ok: true, entry };
+  }
+
+  /** Remove the Time Entry with the given id; true if one was removed. */
+  remove(id: string): boolean {
+    const index = this.entries.findIndex((e) => e.id === id);
+    if (index === -1) return false;
+    this.entries.splice(index, 1);
+    return true;
+  }
+
+  // `excludeId` leaves an entry out of its date's 24-hour cap so editing it in place
+  // is not blocked by its own hours.
+  private validate(input: EntryInput, excludeId?: string): AddResult {
     const date = input.date.trim();
     if (!isDay(date)) return { ok: false, message: "Enter a valid date" };
 
@@ -79,7 +107,7 @@ export class Timesheet {
     }
 
     const dayTotal = this.entries
-      .filter((e) => e.date === date)
+      .filter((e) => e.date === date && e.id !== excludeId)
       .reduce((sum, e) => sum + e.hours, 0);
     if (dayTotal + hours > MAX_HOURS_PER_DATE) {
       return { ok: false, message: "A date can hold at most 24 hours" };
