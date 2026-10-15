@@ -1,0 +1,95 @@
+import { describe, expect, it } from "vitest";
+import { createApp } from "../app";
+
+/** POST form-encoded body to a path, following no redirect. */
+function post(app: ReturnType<typeof createApp>, path: string, fields: Record<string, string>) {
+  return app.request(path, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(fields).toString(),
+  });
+}
+
+const validEntry = { date: "2026-10-15", projectId: "acme-wp", hours: "1.5", description: "Portal work" };
+
+describe("Timesheet add form", () => {
+  it("renders the add form and week navigation", async () => {
+    const html = await (await createApp().request("/?week=2026-W42")).text();
+    expect(html).toContain('action="/?week=2026-W42"');
+    expect(html).toContain('name="date"');
+    expect(html).toContain('name="projectId"');
+    expect(html).toContain('name="hours"');
+    expect(html).toContain('name="description"');
+    expect(html).toContain("Acme Logistics · Warehouse Portal");
+    expect(html).toContain('href="/?week=2026-W41"'); // previous
+    expect(html).toContain('href="/?week=2026-W43"'); // next
+  });
+
+  it("redirects back and shows a valid Time Entry under its day with an updated week total", async () => {
+    const app = createApp();
+    const res = await post(app, "/?week=2026-W42", validEntry);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/?week=2026-W42");
+
+    const html = await (await app.request("/?week=2026-W42")).text();
+    expect(html).toMatch(/Thursday 2026-10-15[\s\S]*Portal work/);
+    expect(html).toContain("Acme Logistics · Warehouse Portal");
+    expect(html).toContain("Week total: 1.5h");
+  });
+
+  it("sums several Time Entries on the same day into the day and week totals", async () => {
+    const app = createApp();
+    await post(app, "/?week=2026-W42", { ...validEntry, hours: "1.5" });
+    await post(app, "/?week=2026-W42", { ...validEntry, hours: "2", description: "More work" });
+    const html = await (await app.request("/?week=2026-W42")).text();
+    expect(html).toContain("Thursday 2026-10-15 — 3.5h");
+    expect(html).toContain("Week total: 3.5h");
+  });
+
+  it("shows only the viewed week's Time Entries as navigation moves", async () => {
+    const app = createApp();
+    await post(app, "/?week=2026-W42", { ...validEntry, date: "2026-10-15", description: "Week 42 work" });
+    await post(app, "/?week=2026-W43", { ...validEntry, date: "2026-10-19", description: "Week 43 work" });
+
+    const w42 = await (await app.request("/?week=2026-W42")).text();
+    expect(w42).toContain("Week 42 work");
+    expect(w42).not.toContain("Week 43 work");
+
+    const w43 = await (await app.request("/?week=2026-W43")).text();
+    expect(w43).toContain("Week 43 work");
+    expect(w43).not.toContain("Week 42 work");
+  });
+
+  it.each([
+    ["an unknown date", { date: "2026-02-30" }, "Enter a valid date"],
+    ["an unknown Project", { projectId: "nope" }, "Project must exist"],
+    ["zero hours", { hours: "0" }, "Hours must be more than 0"],
+    ["hours off the 0.25 step", { hours: "1.1" }, "Hours must be in steps of 0.25"],
+    ["more than 24 hours", { hours: "25" }, "Hours can be at most 24"],
+    ["an empty description", { description: "" }, "Description is required"],
+    ["an over-long description", { description: "x".repeat(201) }, "Description can be at most 200 characters"],
+  ])("rejects %s, re-rendering the form with the message and kept values", async (_label, override, message) => {
+    const app = createApp();
+    const fields = { ...validEntry, ...override };
+    const res = await post(app, "/?week=2026-W42", fields);
+    expect(res.status).toBe(422);
+    const html = await res.text();
+    expect(html).toContain(message);
+    // Kept values: whatever the Consultant typed is still in the form.
+    expect(html).toContain(`value="${fields.date}"`);
+    expect(html).toContain(`value="${fields.hours}"`);
+    expect(html).toContain(`value="${fields.description}"`);
+    // Nothing was logged.
+    expect(html).not.toMatch(/<table>/);
+  });
+
+  it("rejects a 25th hour on a date that is already full", async () => {
+    const app = createApp();
+    await post(app, "/?week=2026-W42", { ...validEntry, hours: "20" });
+    const res = await post(app, "/?week=2026-W42", { ...validEntry, hours: "5", description: "Overflow" });
+    expect(res.status).toBe(422);
+    const html = await res.text();
+    expect(html).toContain("A date can hold at most 24 hours");
+    expect(html).toContain('value="Overflow"');
+  });
+});

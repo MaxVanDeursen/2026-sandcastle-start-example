@@ -26,6 +26,12 @@ function mondayOfWeekOne(year: number): Date {
   return new Date(jan4.getTime() - weekdayIndex(jan4) * DAY_MS);
 }
 
+/** True for a well-formed calendar day that exists, e.g. "2026-10-15". */
+export function isDay(day: string): boolean {
+  const d = new Date(`${day}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === day;
+}
+
 /** The ISO week a calendar day falls in, e.g. "2026-10-15" → "2026-W42". */
 export function isoWeek(day: string): string {
   const d = parseDay(day);

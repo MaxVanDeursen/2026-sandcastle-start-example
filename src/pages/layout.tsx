@@ -17,6 +17,14 @@ const css = `
   h1 { font-size: 1.3rem; }
   table { border-collapse: collapse; width: 100%; max-width: 900px; }
   td, th { border-bottom: 1px solid #ddd; padding: .3rem .5rem; text-align: left; }
+  nav.weeknav { background: none; padding: 0; display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; }
+  nav.weeknav a { color: #1f3a5f; }
+  form { display: flex; flex-wrap: wrap; gap: .8rem; align-items: end; max-width: 900px; margin-bottom: 1.5rem; }
+  form label { display: flex; flex-direction: column; gap: .2rem; font-size: .85rem; }
+  .error { color: #a00; font-weight: bold; flex-basis: 100%; margin: 0; }
+  .day h2 { font-size: 1rem; margin: 1rem 0 .3rem; }
+  .empty { color: #888; margin: .2rem 0; }
+  .weektotal { margin-top: 1.5rem; }
 `;
 
 /** Page shell shared by every page: title, stylesheet and the top nav. */
