@@ -25,6 +25,9 @@ const css = `
   .day h2 { font-size: 1rem; margin: 1rem 0 .3rem; }
   .empty { color: #888; margin: .2rem 0; }
   .weektotal { margin-top: 1.5rem; }
+  table.comparison { margin-bottom: 1.5rem; }
+  table.comparison tr.diff { background: #fff3cd; }
+  table.comparison tr.diff td { font-weight: bold; }
 `;
 
 /** Page shell shared by every page: title, stylesheet and the top nav. */

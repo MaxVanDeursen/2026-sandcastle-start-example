@@ -2,6 +2,7 @@ import type { DignitasRecord } from "../fake/dignitas";
 import { projectLabel, projects } from "../catalog/catalog";
 import type { EntryInput, TimeEntry } from "../timesheet/timesheet";
 import { shiftWeek, weekDays } from "../week/week";
+import { DayComparison, type ComparisonRow } from "../comparison/comparison";
 import { Layout } from "./layout";
 
 const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -99,8 +100,13 @@ export function TimesheetPage(props: {
   );
 }
 
-export function DignitasHourServerPage(props: { week: string; online: boolean; records: DignitasRecord[] }) {
-  const { week, online, records } = props;
+export function DignitasHourServerPage(props: {
+  week: string;
+  online: boolean;
+  records: DignitasRecord[];
+  comparison: ComparisonRow[];
+}) {
+  const { week, online, records, comparison } = props;
   return (
     <Layout title="Dignitas Hour Server" active="dignitas">
       <p>
@@ -108,6 +114,9 @@ export function DignitasHourServerPage(props: { week: string; online: boolean; r
         <strong>{week}</strong>{" "}
         <a href={`/dignitas?week=${shiftWeek(week, 1)}`}>next →</a>
       </p>
+
+      <h2>Per-day comparison</h2>
+      <DayComparison rows={comparison} unit="h" format={formatHours} />
 
       <form method="post" action="/dignitas/toggle">
         <input type="hidden" name="week" value={week} />

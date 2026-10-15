@@ -6,6 +6,8 @@ import { AcmeStore } from "./fake/acme/store";
 import { createAcmeServer } from "./fake/acme/server";
 import { AcmeHourServerPage } from "./fake/acme/page";
 import { Timesheet, type EntryInput } from "./timesheet/timesheet";
+import { ACME_CLIENT_ID, findProject } from "./catalog/catalog";
+import { perDayComparison } from "./comparison/comparison";
 import { currentWeek, isIsoWeek, isoWeek, weekDays } from "./week/week";
 
 /** Builds the whole app. Tests call routes in-process with `app.request()`. */
@@ -49,10 +51,16 @@ export function createApp() {
   app.route("/fake/acme", createAcmeServer(acme));
 
   app.get("/dignitas", async (c) => {
-    const week = c.req.query("week") ?? currentWeek();
+    const week = weekParam(c.req.query("week"));
     const res = await app.request(`/fake/dignitas/_inspect?week=${week}`);
     const { online, records } = (await res.json()) as { online: boolean; records: DignitasRecord[] };
-    return c.html(<DignitasHourServerPage week={week} online={online} records={records} />);
+    // Dignitas receives every Time Entry, compared in hours.
+    const comparison = perDayComparison(
+      week,
+      records.map((r) => ({ date: r.date, amount: r.hours })),
+      timesheet.forWeek(week).map((e) => ({ date: e.date, amount: e.hours })),
+    );
+    return c.html(<DignitasHourServerPage week={week} online={online} records={records} comparison={comparison} />);
   });
 
   // Online/Offline toggle on the Dignitas Hour Server Page, via the control route.
@@ -69,11 +77,19 @@ export function createApp() {
   });
 
   app.get("/acme", (c) => {
-    const requested = c.req.query("week");
-    const week = requested && isIsoWeek(requested) ? requested : currentWeek();
+    const week = weekParam(c.req.query("week"));
     const days = weekDays(week);
     const records = acme.listByDateRange(days[0]!, days[6]!);
-    return c.html(<AcmeHourServerPage week={week} online={acme.online} records={records} />);
+    // Acme receives only Acme Projects' Time Entries, compared in minutes.
+    const acmeEntries = timesheet
+      .forWeek(week)
+      .filter((e) => findProject(e.projectId)?.clientId === ACME_CLIENT_ID);
+    const comparison = perDayComparison(
+      week,
+      records.map((r) => ({ date: r.workDate, amount: r.minutes })),
+      acmeEntries.map((e) => ({ date: e.date, amount: Math.round(e.hours * 60) })),
+    );
+    return c.html(<AcmeHourServerPage week={week} online={acme.online} records={records} comparison={comparison} />);
   });
 
   return app;
