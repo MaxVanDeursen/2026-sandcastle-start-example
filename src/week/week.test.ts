@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentWeek, isIsoWeek, isoWeek, shiftWeek, weekDays } from "./week";
+import { currentWeek, isDay, isIsoWeek, isoWeek, shiftWeek, weekDays } from "./week";
 
 describe("isoWeek", () => {
   it("finds the week of a day", () => {
@@ -49,6 +49,16 @@ describe("isIsoWeek", () => {
     expect(isIsoWeek("2025-W53")).toBe(false);
     expect(isIsoWeek("2026-W00")).toBe(false);
     expect(isIsoWeek("2026-42")).toBe(false);
+  });
+});
+
+describe("isDay", () => {
+  it("accepts real calendar days only", () => {
+    expect(isDay("2026-10-15")).toBe(true);
+    expect(isDay("2026-02-30")).toBe(false);
+    expect(isDay("15-10-2026")).toBe(false);
+    expect(isDay("2026-13-01")).toBe(false);
+    expect(isDay("")).toBe(false);
   });
 });
 
